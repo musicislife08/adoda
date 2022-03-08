@@ -1,0 +1,8 @@
+apiVersion: "azdo.controller/v1"
+kind: AgentSpec
+metadata:
+  namespace: azdo-agents
+  name: cloudazdoagent
+spec:
+  prefix: "container-agent"
+  image: ReplaceMeWithRepo/linuxagent:#{Build.BuildNumber}#

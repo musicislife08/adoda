@@ -1,0 +1,81 @@
+name: $(major).$(minor).$(Rev:r)
+trigger:
+  branches:
+    include:
+      - master
+  paths:
+    include:
+      - 'Agent'
+    exclude:
+      - 'Agent/azure-pipelines.yml'
+pool:
+  name: 'Azure Linux'
+variables:
+  - name: buildConfiguration
+    value: 'Release'
+  - name: major
+    value: 0
+  - name: minor
+    value: 0
+  - name: workingDirectory
+    value: 'Agent'
+stages:
+  - stage: build
+    displayName: 'Build And Push Image'
+    jobs:
+      - job: build
+        displayName: 'Build and Push Image'
+        steps:
+          - task: Docker@2
+            inputs:
+              containerRegistry: 'ACR NAME'
+              repository: 'linuxagent'
+              command: buildAndPush
+              Dockerfile: '$(workingDirectory)/Dockerfile'
+              buildContext: '$(workingDirectory)'
+              tags: |
+                $(Build.BuildNumber)
+              addPipelineData: false
+      - job: publish
+        displayName: Publish
+        steps:
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish k8s'
+            inputs:
+              artifact: config
+              targetPath: '$(workingDirectory)/agent-spec.yaml'
+  - stage: deployMsdn
+    displayName: 'Deploy Controller Msdn'
+    jobs:
+      - deployment: deploy
+        displayName: 'Deploy'
+        environment: AgentNonProd
+        strategy:
+         runOnce:
+           deploy:
+             steps:
+              - download: current
+                artifact: config
+              - task: a8515ec8-7254-4ffd-912c-86772e2b5962@3
+                displayName: 'Update Config'
+                inputs:
+                  rootDirectory: '$(Pipeline.Workspace)/config'
+                  targetFiles: '**/*.yaml'
+                  encoding: 'auto'
+                  writeBOM: true
+                  actionOnMissing: 'fail'
+                  keepToken: false
+                  tokenPrefix: '#{'
+                  tokenSuffix: '}#'
+              - task: Kubernetes@1
+                displayName: 'Kubectl Apply AgentSpec'
+                inputs:
+                  connectionType: 'Kubernetes Service Connection'
+                  kubernetesServiceEndpoint: 'KubeServiceConnectionHere'
+                  command: 'apply'
+                  useConfigurationFile: true
+                  configuration: '$(Pipeline.Workspace)/config/agent-spec.yaml'
+                  secretType: 'generic'
+                  forceUpdate: false
+                  workingDirectory: '$(Pipeline.Workspace)/config/'
+                  outputFormat: 'none'
