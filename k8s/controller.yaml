@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: azdo-agent-controller
+  namespace: azdo-system
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      run: azdo-agent-controller
+  template:
+    metadata:
+      labels:
+        run: azdo-agent-controller
+    spec:
+      tolerations:
+        - key: CriticalAddonsOnly
+          operator: Exists
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                - key: kubernetes.io/os
+                  operator: In
+                  values:
+                    - linux
+      serviceAccountName: azdo-service-account
+      containers:
+      - env:
+        - name: AdoConfig__OrgUri
+          value: https://dev.azure.com/orgurlhere
+        - name: AdoConfig__Token
+          valueFrom:
+            secretKeyRef:
+              name: azdo-secret
+              key: pat
+              optional: false
+        - name: ApplicationInsights__ConnectionString
+          valueFrom:
+            secretKeyRef:
+              name: azdo-secret
+              key: aics
+              optional: false
+        - name: AdoConfig__AgentPool
+          value: "azure-container-linux"
+        - name: KubernetesConfig__AgentNamespace
+          value: "azdo-agents"
+        - name: AdoConfig__NumberOfWaitingAgents
+          value: "2"
+        - name: KubernetesConfig__AgentMaxCount
+          value: "20"
+        - name: KubernetesConfig__AgentMinCount
+          value: "1"
+        image: ControllerImageHere
+        imagePullPolicy: IfNotPresent
+        name: azdo-agent-controller
+        resources:
+          limits:
+            cpu: 100m
+            memory: 100Mi
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: azdo-secret
+  namespace: azdo-system
+  labels:
+    run: azdo-agent-controller
+type: Opaque
+stringData:
+  pat: '#{PAT}#'
+  aics: '#{AppInsightsConnectionString}#'

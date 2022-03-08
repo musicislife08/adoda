@@ -1,0 +1,91 @@
+name: $(major).$(minor).$(Rev:r)
+trigger:
+  branches:
+    include:
+      - master
+  paths:
+    exclude:
+      - 'deploy'
+pool:
+  name: 'Azure Linux'
+
+variables:
+  - name: major
+    value: 0
+  - name: minor
+    value: 0
+  - name: workingDirectory
+    value: $(Build.SourcesDirectory)
+stages:
+  - stage: build
+    displayName: 'Build And Push Image'
+    jobs:
+      - job: build
+        displayName: 'Build and Push Image'
+        steps:
+          - task: Docker@2
+            inputs:
+              containerRegistry: 'Registry'
+              repository: 'linuxagentcontroller'
+              command: buildAndPush
+              Dockerfile: '$(workingDirectory)/AgentWorker/Dockerfile'
+              buildContext: '$(workingDirectory)'
+              tags: |
+                latest
+                $(Build.BuildNumber)
+              addPipelineData: true
+      - job: publish
+        displayName: Publish
+        steps:
+          - task: PublishPipelineArtifact@1
+            displayName: 'Publish k8s'
+            inputs:
+              artifact: config
+              targetPath: 'k8s'
+  - stage: deployMsdn
+    displayName: 'Deploy Controller'
+    jobs:
+      - deployment: deploy
+        displayName: 'Deploy'
+        environment: MsdnAutomated
+        strategy:
+         runOnce:
+           deploy:
+             steps:
+              - download: current
+                artifact: config
+              - task: a8515ec8-7254-4ffd-912c-86772e2b5962@3
+                displayName: 'Replace Tokens'
+                inputs:
+                  rootDirectory: '$(Pipeline.Workspace)/config'
+                  targetFiles: '**/*.yaml'
+                  encoding: 'auto'
+                  writeBOM: true
+                  actionOnMissing: 'fail'
+                  keepToken: false
+                  tokenPrefix: '#{'
+                  tokenSuffix: '}#'
+              - task: Kubernetes@1
+                displayName: 'Kubectl Install CRDs'
+                inputs:
+                  connectionType: 'Kubernetes Service Connection'
+                  kubernetesServiceEndpoint: 'KubeServiceConnection'
+                  command: 'apply'
+                  useConfigurationFile: true
+                  configuration: '$(Pipeline.Workspace)/config/install.yaml'
+                  secretType: 'generic'
+                  forceUpdate: false
+                  workingDirectory: '$(Pipeline.Workspace)/config/'
+                  outputFormat: 'none'
+              - task: Kubernetes@1
+                displayName: 'Kubectl Apply Controller'
+                inputs:
+                  connectionType: 'Kubernetes Service Connection'
+                  kubernetesServiceEndpoint: 'KubeServiceConnection'
+                  command: 'apply'
+                  useConfigurationFile: true
+                  configuration: '$(Pipeline.Workspace)/config/controller.yaml'
+                  secretType: 'generic'
+                  forceUpdate: false
+                  workingDirectory: '$(Pipeline.Workspace)/config/'
+                  outputFormat: 'none'
