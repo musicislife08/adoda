@@ -9,16 +9,26 @@ trigger:
     exclude:
       - 'Agent/azure-pipelines.yml'
 pool:
-  name: 'Azure Linux'
+  name: 'SelfHostedAgentPoolNameHere'
 variables:
   - name: buildConfiguration
     value: 'Release'
   - name: major
-    value: 0
+    value: 1
   - name: minor
     value: 0
   - name: workingDirectory
     value: 'Agent'
+  - name: ContainerRegistry
+    value: 'Container Registry Service Connection Name Here'
+  - name: KubernetesServiceConnectionNonProd
+    value: 'Kubernetes Service Connection Name Here'
+  - name: KubernetesServiceConnectionProd
+    value: 'Kubernetes Service Connection Name Here'
+  - name: NonProdEnvironmentName
+    value: nonprod
+  - name: ProdEnvironmentName
+    value: prod
 stages:
   - stage: build
     displayName: 'Build And Push Image'
@@ -28,14 +38,14 @@ stages:
         steps:
           - task: Docker@2
             inputs:
-              containerRegistry: 'ACR NAME'
+              containerRegistry: $(ContainerRegistry)
               repository: 'linuxagent'
               command: buildAndPush
               Dockerfile: '$(workingDirectory)/Dockerfile'
               buildContext: '$(workingDirectory)'
               tags: |
                 $(Build.BuildNumber)
-              addPipelineData: false
+              addPipelineData: true
       - job: publish
         displayName: Publish
         steps:
@@ -44,19 +54,19 @@ stages:
             inputs:
               artifact: config
               targetPath: '$(workingDirectory)/agent-spec.yaml'
-  - stage: deployMsdn
-    displayName: 'Deploy Controller Msdn'
+  - stage: deployNonProd
+    displayName: 'Deploy Controller Non Production'
     jobs:
       - deployment: deploy
         displayName: 'Deploy'
-        environment: AgentNonProd
+        environment: $(NonProdEnvironmentName)
         strategy:
          runOnce:
            deploy:
              steps:
               - download: current
                 artifact: config
-              - task: a8515ec8-7254-4ffd-912c-86772e2b5962@3
+              - task: replacetokens@3
                 displayName: 'Update Config'
                 inputs:
                   rootDirectory: '$(Pipeline.Workspace)/config'
@@ -71,7 +81,42 @@ stages:
                 displayName: 'Kubectl Apply AgentSpec'
                 inputs:
                   connectionType: 'Kubernetes Service Connection'
-                  kubernetesServiceEndpoint: 'KubeServiceConnectionHere'
+                  kubernetesServiceEndpoint: $(KubernetesServiceConnectionNonProd)
+                  command: 'apply'
+                  useConfigurationFile: true
+                  configuration: '$(Pipeline.Workspace)/config/agent-spec.yaml'
+                  secretType: 'generic'
+                  forceUpdate: false
+                  workingDirectory: '$(Pipeline.Workspace)/config/'
+                  outputFormat: 'none'
+  - stage: deployProd
+    displayName: 'Deploy Controller Production'
+    jobs:
+      - deployment: deploy
+        displayName: 'Deploy'
+        environment: $(ProdEnvironmentName)
+        strategy:
+         runOnce:
+           deploy:
+             steps:
+              - download: current
+                artifact: config
+              - task: replacetokens@3
+                displayName: 'Update Config'
+                inputs:
+                  rootDirectory: '$(Pipeline.Workspace)/config'
+                  targetFiles: '**/*.yaml'
+                  encoding: 'auto'
+                  writeBOM: true
+                  actionOnMissing: 'fail'
+                  keepToken: false
+                  tokenPrefix: '#{'
+                  tokenSuffix: '}#'
+              - task: Kubernetes@1
+                displayName: 'Kubectl Apply AgentSpec'
+                inputs:
+                  connectionType: 'Kubernetes Service Connection'
+                  kubernetesServiceEndpoint: $(KubernetesServiceConnectionProd)
                   command: 'apply'
                   useConfigurationFile: true
                   configuration: '$(Pipeline.Workspace)/config/agent-spec.yaml'

@@ -115,6 +115,7 @@ RUN rm -rf /tmp/*
 
 # Cleanup Packages
 RUN apt-get autoremove --purge
+RUN apt-get clean
 
 # Install ADO Agent
 ARG TARGETARCH=amd64
