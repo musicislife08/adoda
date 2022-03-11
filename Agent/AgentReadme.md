@@ -48,3 +48,10 @@ Feel free to use another method of value replacement if you wish
 
 - [Replace Tokens](https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens)
 
+### Setup
+
+For this document im going to assume you have a basic understanding of Azure DevOps yaml pipelines.
+
+Edit the variables to match your environment.  This pipeline assumes you have 2 separate environments a production and a non production
+that cannot speak to each other directly and as such require two different agent pools
+
