@@ -1,0 +1,64 @@
+Index: .idea/.idea.AgentController/.idea/.gitignore
+===================================================================
+diff --git a/.idea/.idea.AgentController/.idea/.gitignore b/.idea/.idea.AgentController/.idea/.gitignore
+deleted file mode 100644
+--- a/.idea/.idea.AgentController/.idea/.gitignore	(revision fe9ff0fcedb360cc4b9c71cc33e1194f3d4197ba)
++++ /dev/null	(revision fe9ff0fcedb360cc4b9c71cc33e1194f3d4197ba)
+@@ -1,13 +0,0 @@
+-# Default ignored files
+-/shelf/
+-/workspace.xml
+-# Rider ignored files
+-/projectSettingsUpdater.xml
+-/modules.xml
+-/contentModel.xml
+-/.idea.AgentController.iml
+-# Editor-based HTTP Client requests
+-/httpRequests/
+-# Datasource local storage ignored files
+-/dataSources/
+-/dataSources.local.xml
+Index: Agent/Dockerfile
+IDEA additional info:
+Subsystem: com.intellij.openapi.diff.impl.patch.BaseRevisionTextPatchEP
+<+>FROM ubuntu:20.04\n# To make it easier for build and release pipelines to run apt-get,\n# configure apt to not require confirmation (assume the -y argument by default)\nENV DEBIAN_FRONTEND=noninteractive\nRUN echo \"APT::Get::Assume-Yes \\\"true\\\";\" > /etc/apt/apt.conf.d/90assumeyes\nWORKDIR /tmp\nRUN apt-get update && apt-get install --no-install-recommends \\\n    apt-transport-https \\\n    apt-utils \\\n    ca-certificates \\\n    curl \\\n    git \\\n    gpg \\\n    gpg-agent \\\n    iputils-ping \\\n    iptables \\\n    jq \\\n    libcurl4 \\\n    libunwind8 \\\n    libssl1.0 \\\n    netcat \\\n    openssh-client \\\n    slirp4netns \\\n    software-properties-common \\\n    sudo \\\n    supervisor \\\n    unzip \\\n    wget \\\n    zip\n\n# Docker Install Settings\nENV DOCKER_CHANNEL=stable \\\n\tDOCKER_VERSION=20.10.8 \\\n\tDOCKER_COMPOSE_VERSION=1.29.2 \\\n\tDEBUG=false\n\n# Docker installation\nRUN set -eux; \\\n\t\\\n\tarch=\"$(uname --m)\"; \\\n\tcase \"$arch\" in \\\n        # amd64\n\t\tx86_64) dockerArch='x86_64' ;; \\\n        # arm32v6\n\t\tarmhf) dockerArch='armel' ;; \\\n        # arm32v7\n\t\tarmv7) dockerArch='armhf' ;; \\\n        # arm64v8\n\t\taarch64) dockerArch='aarch64' ;; \\\n\t\t*) echo >&2 \"error: unsupported architecture ($arch)\"; exit 1 ;;\\\n\tesac; \\\n\t\\\n\tif ! wget -q -O docker.tgz \"https://download.docker.com/linux/static/${DOCKER_CHANNEL}/${dockerArch}/docker-${DOCKER_VERSION}.tgz\"; then \\\n\t\techo >&2 \"error: failed to download 'docker-${DOCKER_VERSION}' from '${DOCKER_CHANNEL}' for '${dockerArch}'\"; \\\n\t\texit 1; \\\n\tfi; \\\n\t\\\n\ttar --extract \\\n\t\t--file docker.tgz \\\n\t\t--strip-components 1 \\\n\t\t--directory /usr/local/bin/ \\\n\t; \\\n\trm docker.tgz; \\\n\t\\\n\tdockerd --version; \\\n\tdocker --version\nCOPY modprobe /usr/local/bin/\nCOPY supervisor/ /etc/supervisor/conf.d/\nCOPY logger.sh /opt/bash-utils/logger.sh\nRUN chmod +x /usr/local/bin/modprobe\nVOLUME /var/lib/docker\nRUN curl -L \"https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-$(uname -s)-$(uname -m)\" -o /usr/local/bin/docker-compose \\\n\t&& chmod +x /usr/local/bin/docker-compose\n\nRUN add-apt-repository universe\nRUN wget -q https://packages.microsoft.com/config/ubuntu/20.04/packages-microsoft-prod.deb && dpkg -i packages-microsoft-prod.deb\nRUN curl -sL https://deb.nodesource.com/setup_14.x | bash\n#RUN echo \"deb https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_20.04/ /\" > /etc/apt/sources.list.d/kubic.list\n#RUN curl -L https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/xUbuntu_20.04/Release.key | sudo apt-key add -\nRUN apt-get update && apt-get install --no-install-recommends \\\n  python3 python3-pip python3-setuptools \\\n  powershell \\\n  dotnet-sdk-3.1 dotnet-sdk-5.0 dotnet-sdk-6.0 \\\n  nodejs\n\nRUN curl -LsS https://aka.ms/InstallAzureCLIDeb | bash\n\n# Install NPM Packages\nRUN npm install && npm install --no-package-lock\nRUN npm install -g newman\n\n# Install Kubectl and Helm\nRUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl\nRUN chmod +x ./kubectl && mv ./kubectl /usr/local/bin/\nRUN curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash\n\n# Install Terraform\nRUN curl -o terraform.zip -LO https://releases.hashicorp.com/terraform/$(curl -s https://checkpoint-api.hashicorp.com/v1/check/terraform | jq -r -M '.current_version')/terraform_$(curl -s https://checkpoint-api.hashicorp.com/v1/check/terraform | jq -r -M '.current_version')_linux_amd64.zip\nRUN unzip terraform.zip && mv terraform /usr/local/bin/\n\n# Install Packer\nRUN curl -o packer.zip -LO https://releases.hashicorp.com/packer/$(curl -s https://checkpoint-api.hashicorp.com/v1/check/packer | jq -r -M '.current_version')/packer_$(curl -s https://checkpoint-api.hashicorp.com/v1/check/packer | jq -r -M '.current_version')_linux_amd64.zip\nRUN unzip packer.zip && mv packer /usr/local/bin/\n\n# Install Google SDK\nENV CLOUDSDK_INSTALL_DIR /usr/local/gcloud/\nRUN curl -sSL https://sdk.cloud.google.com | bash\nENV PATH $PATH:/usr/local/gcloud/google-cloud-sdk/bin\n\n# Install AWS Cli\nRUN pip3 install awscli\n\n# Cleanup Setup Folder\nRUN rm -rf /tmp/*\n\n# Cleanup Packages\nRUN apt-get autoremove --purge\n\n# Install ADO Agent\nARG TARGETARCH=amd64\nWORKDIR /azp\nRUN AGENT_VERSION=$(curl -s https://api.github.com/repos/Microsoft/azure-pipelines-agent/releases/latest | jq -r '.tag_name' | cut -c2-) && \\\n    if [ \"$TARGETARCH\" = \"amd64\" ]; then \\\n      AZP_AGENTPACKAGE_URL=https://vstsagentpackage.azureedge.net/agent/${AGENT_VERSION}/vsts-agent-linux-x64-${AGENT_VERSION}.tar.gz; \\\n    else \\\n      AZP_AGENTPACKAGE_URL=https://vstsagentpackage.azureedge.net/agent/${AGENT_VERSION}/vsts-agent-linux-${TARGETARCH}-${AGENT_VERSION}.tar.gz; \\\n    fi; \\\n    curl -LsS \"$AZP_AGENTPACKAGE_URL\" | tar -xz\n\nCOPY ./start.sh .\nRUN chmod +x start.sh\n\nENTRYPOINT [ \"./start.sh\" ]
+Subsystem: com.intellij.openapi.diff.impl.patch.CharsetEP
+<+>UTF-8
+===================================================================
+diff --git a/Agent/Dockerfile b/Agent/Dockerfile
+--- a/Agent/Dockerfile	(revision fe9ff0fcedb360cc4b9c71cc33e1194f3d4197ba)
++++ b/Agent/Dockerfile	(date 1646861697111)
+@@ -86,13 +86,22 @@
+ RUN curl -LsS https://aka.ms/InstallAzureCLIDeb | bash
+ 
+ # Install NPM Packages
+-RUN npm install && npm install --no-package-lock
+-RUN npm install -g newman
++RUN npm install -g newman --no-package-lock
+ 
+-# Install Kubectl and Helm
++# Install Kubectl, Helm, Krew, and Deprecations(kubepug)
+ RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
+ RUN chmod +x ./kubectl && mv ./kubectl /usr/local/bin/
+ RUN curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
++RUN ( \
++  set -x; cd "$(mktemp -d)" && \
++  OS="$(uname | tr '[:upper:]' '[:lower:]')" && \
++  ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/')" && \
++  KREW="krew-${OS}_${ARCH}" && \
++  curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/${KREW}.tar.gz" && \
++  tar zxvf "${KREW}.tar.gz" && \
++  ./"${KREW}" install krew \
++  )
++RUN export PATH=${KREW_ROOT:-$HOME/.krew}/bin:$PATH && kubectl krew install deprecations
+ 
+ # Install Terraform
+ RUN curl -o terraform.zip -LO https://releases.hashicorp.com/terraform/$(curl -s https://checkpoint-api.hashicorp.com/v1/check/terraform | jq -r -M '.current_version')/terraform_$(curl -s https://checkpoint-api.hashicorp.com/v1/check/terraform | jq -r -M '.current_version')_linux_amd64.zip
+@@ -129,5 +138,6 @@
+ 
+ COPY ./start.sh .
+ RUN chmod +x start.sh
++RUN apt-get clean
+ 
+ ENTRYPOINT [ "./start.sh" ]
+\ No newline at end of file

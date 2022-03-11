@@ -86,13 +86,22 @@ RUN apt-get update && apt-get install --no-install-recommends \
 RUN curl -LsS https://aka.ms/InstallAzureCLIDeb | bash
 
 # Install NPM Packages
-RUN npm install && npm install --no-package-lock
-RUN npm install -g newman
+RUN npm install -g newman --no-package-lock
 
-# Install Kubectl and Helm
+# Install Kubectl, Helm, Krew, and Deprecations(kubepug)
 RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
 RUN chmod +x ./kubectl && mv ./kubectl /usr/local/bin/
 RUN curl -L https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3 | bash
+RUN ( \
+  set -x; cd "$(mktemp -d)" && \
+  OS="$(uname | tr '[:upper:]' '[:lower:]')" && \
+  ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/')" && \
+  KREW="krew-${OS}_${ARCH}" && \
+  curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/${KREW}.tar.gz" && \
+  tar zxvf "${KREW}.tar.gz" && \
+  ./"${KREW}" install krew \
+  )
+RUN export PATH=${KREW_ROOT:-$HOME/.krew}/bin:$PATH && kubectl krew install deprecations
 
 # Install Terraform
 RUN curl -o terraform.zip -LO https://releases.hashicorp.com/terraform/$(curl -s https://checkpoint-api.hashicorp.com/v1/check/terraform | jq -r -M '.current_version')/terraform_$(curl -s https://checkpoint-api.hashicorp.com/v1/check/terraform | jq -r -M '.current_version')_linux_amd64.zip

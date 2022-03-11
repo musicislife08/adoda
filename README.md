@@ -21,13 +21,13 @@ This was built for azure devops and azure kubernetes so we use the azure contain
 # Installation
 
 Step 1: Build and install the agent spec
-- [Install Instructions](Agent/AgentReadMe.md)
+- [Install Instructions](Agent/AgentReadme.md)
 
 Step 2: Build and install the controller
 
 **NOTE: The agent-spec.yaml file must be installed into the `azdo-agents` namespace before you can run the controller or it will restart over and over until its there**
 
-- [Install Instructions](AgentWorker/AgentWorkerReadMe.md)
+- [Install Instructions](AgentWorker/AgentWorkerReadme.md)
 
 
 

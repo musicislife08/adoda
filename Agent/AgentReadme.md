@@ -43,6 +43,8 @@ By Default the dockerfile based on ubuntu 20.04 in this repo installs the follow
 
 ### Pipeline Requirements
 
-This pipeline uses a third party task to replace values in files you will need to install
+This pipeline uses a third party task to replace values in files you will need to install.
+Feel free to use another method of value replacement if you wish
 
 - [Replace Tokens](https://marketplace.visualstudio.com/items?itemName=qetza.replacetokens)
+
