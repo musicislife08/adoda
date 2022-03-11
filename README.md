@@ -20,12 +20,13 @@ This was built for azure devops and azure kubernetes so we use the azure contain
 
 # Installation
 
+**NOTE: Before Installing you will need to create 2 namespaces `azdo-agents`, and `azdo-system`**
+
 Step 1: Build and install the agent spec
+
 - [Install Instructions](Agent/AgentReadme.md)
 
 Step 2: Build and install the controller
-
-**NOTE: The agent-spec.yaml file must be installed into the `azdo-agents` namespace before you can run the controller or it will restart over and over until its there**
 
 - [Install Instructions](AgentWorker/AgentWorkerReadme.md)
 

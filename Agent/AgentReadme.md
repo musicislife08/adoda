@@ -55,3 +55,7 @@ For this document im going to assume you have a basic understanding of Azure Dev
 Edit the variables to match your environment.  This pipeline assumes you have 2 separate environments a production and a non production
 that cannot speak to each other directly and as such require two different agent pools
 
+The most important part of this process is setting the image and creating the agent kubernetes object the controller will use to spin up new agents
+
+Once you have the agent image built and the object deployed to your kubernetes cluster you can move on to the next step.  
+[Installing the controller](../AgentWorker/AgentWorkerReadme.md)
